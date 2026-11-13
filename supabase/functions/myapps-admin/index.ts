@@ -52,17 +52,77 @@ export async function handler(req){
   }
   const car=db.schema('mycar');
   if(app==='mycar'){
-   const role=ok(await car.from('invitation_admins').select('user_id').eq('user_id',actor.id).maybeSingle());
-   if(!role)return reply({error:'Acces rezervat administratorului MyCar.'},403);
-   if(['approve','reject'].includes(action))return reply(await proxy('mycar-invitations',{action,id:body.id}));
+   const admins=ok(await car.from('invitation_admins').select('user_id'));
+   if(!admins.some(a=>a.user_id===actor.id))return reply({error:'Acces rezervat administratorului MyCar.'},403);
+   const APP='https://anzosafe-oss.github.io/mycar/';
+   async function sendCarInvite(rawEmail){
+    const email=String(rawEmail||'').trim().toLowerCase();
+    if(!validEmail(email))throw Error('Adresa de e-mail nu este validă.');
+    const reservation=ok(await car.rpc('reserve_access_invite',{recipient:email}));
+    let delivered=false,recipientId=reservation.user_id||null;
+    try{
+     if(recipientId){
+      const existingUser=ok(await db.auth.admin.getUserById(recipientId)).user;
+      const redirect=existingUser?.email_confirmed_at?APP:APP+'?type=invite';
+      const client=createClient(MAIN,MAIN_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
+      ok(await client.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:redirect}}));
+     }else{
+      const invite=ok(await db.auth.admin.inviteUserByEmail(email,{redirectTo:APP}));
+      recipientId=invite.user?.id||null;
+      if(!recipientId)throw Error('Destinatarul nu a putut fi verificat.');
+     }
+     delivered=true;
+    }finally{
+     ok(await car.rpc('finish_access_invite',{recipient:email,delivery:reservation.delivery_key,recipient_id:recipientId,delivered}));
+    }
+    return {email,user_id:recipientId};
+   }
+   if(action==='overview'){
+    const access=ok(await car.from('app_access').select('email,user_id,status,created_at,updated_at,sent_at,send_count,error').order('created_at',{ascending:false}).limit(1000));
+    const activity=ok(await car.from('account_activity').select('user_id,last_seen_at').limit(1000));
+    const requests=ok(await car.from('invitation_requests').select('id,email,status,created_at,updated_at,invite_error,invited_user_id').order('created_at',{ascending:false}).limit(1000));
+    const accounts=access.map(a=>({id:a.user_id,email:a.email,status:a.status,active:a.status==='active',last_seen_at:activity.find(v=>v.user_id===a.user_id)?.last_seen_at||null,protected:a.email===OWNER||admins.some(v=>v.user_id===a.user_id)}));
+    const invitations=access.filter(a=>a.send_count>0||a.status==='failed').map(a=>({...a,id:a.email,status:a.status==='active'?'accepted':a.status}));
+    return reply({accounts,invitations,requests,capabilities:{invite:true,resend:true,revoke:true,review:true},notice:'Invitațiile și retragerea accesului se aplică doar MyCar. Datele conturilor sunt păstrate. Conturile existente în celelalte aplicații pot folosi parola lor.'});
+   }
+   if(action==='invite'||action==='resend'){
+    const email=String(action==='resend'?body.id:body.email||'').trim().toLowerCase();
+    if(action==='resend'){
+     const entry=ok(await car.from('app_access').select('status').eq('email',email).maybeSingle());
+     if(!entry||!['pending','failed'].includes(entry.status))return reply({error:'Invitația nu mai poate fi retrimisă.'},409);
+    }
+    await sendCarInvite(email);return reply({ok:true,message:'Invitație trimisă pe e-mail.'});
+   }
+   if(action==='revoke'||action==='cancel'){
+    const email=String(body.id||'').trim().toLowerCase();
+    if(!validEmail(email))return reply({error:'Adresă de e-mail invalidă.'},400);
+    if(action==='cancel'){
+     const entry=ok(await car.from('app_access').select('status').eq('email',email).maybeSingle());
+     if(!entry||entry.status!=='pending')return reply({error:'Invitația nu mai este în așteptare.'},409);
+    }
+    ok(await car.rpc('revoke_access',{recipient:email}));return reply({ok:true});
+   }
+   if(action==='approve'||action==='reject'){
+    if(typeof body.id!=='string'||!/^[a-f0-9-]{36}$/i.test(body.id))return reply({error:'Cerere invalidă.'},400);
+    const request=ok(await car.from('invitation_requests').select('id,email,status').eq('id',body.id).maybeSingle());
+    if(!request||request.status!=='pending')return reply({error:'Cererea a fost deja procesată.'},409);
+    if(action==='reject'){
+     const row=ok(await car.from('invitation_requests').update({status:'rejected',reviewed_by:actor.id,updated_at:new Date().toISOString(),invite_error:null}).eq('id',body.id).eq('status','pending').select('id').maybeSingle());
+     return row?reply({ok:true}):reply({error:'Cererea a fost deja procesată.'},409);
+    }
+    const claim=ok(await car.from('invitation_requests').update({status:'sending',reviewed_by:actor.id,updated_at:new Date().toISOString()}).eq('id',body.id).eq('status','pending').select('id').maybeSingle());
+    if(!claim)return reply({error:'Cererea a fost deja procesată.'},409);
+    try{
+     const result=await sendCarInvite(request.email);
+     ok(await car.from('invitation_requests').update({status:'approved',invited_user_id:result.user_id,invite_error:null,updated_at:new Date().toISOString()}).eq('id',body.id).eq('status','sending'));
+     return reply({ok:true});
+    }catch(error){
+     ok(await car.from('invitation_requests').update({status:'pending',invite_error:error.message||'Invitația nu a fost trimisă.',updated_at:new Date().toISOString()}).eq('id',body.id).eq('status','sending'));throw error;
+    }
+   }
+   return reply({error:'Acțiune invalidă.'},400);
   }
   if(action!=='overview')return reply({error:'Această funcție nu este încă activată pentru aplicația selectată.'},409);
-  if(app==='mycar'){
-   const old=await proxy('mycar-invitations',{action:'list'});
-   const accounts=old.accounts.map(a=>({...a,status:a.active?'active':'pending',protected:a.email?.toLowerCase()===OWNER}));
-   const invitations=old.requests.filter(r=>r.status==='approved').map(r=>({id:r.id,email:r.email,status:accounts.find(a=>a.id===r.invited_user_id)?.active?'accepted':'pending',sent_at:r.updated_at,created_at:r.created_at,send_count:1}));
-   return reply({accounts,invitations,requests:old.requests,capabilities:{invite:false,resend:false,revoke:false,review:true},notice:'Poți aproba sau respinge cererile de acces. Invitațiile directe și retragerea accesului nu sunt încă activate.'});
-  }
   const users=[];
   for(let page=1;page<=10;page++){
    const result=ok(await db.auth.admin.listUsers({page,perPage:1000}));users.push(...result.users);

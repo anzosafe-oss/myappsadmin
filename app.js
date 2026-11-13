@@ -49,7 +49,7 @@ function render(){
  const app=names[current],list=current==='mylist';const caps=data.capabilities||{};$('inviteForm').closest('.invite-panel').hidden=!caps.invite;$('appTitle').textContent=app;$('openApp').href='https://anzosafe-oss.github.io/'+current+'/';
  $('intro').textContent=list?'Familiile, conturile și invitațiile MyList.':'Conturile și accesul la '+app+'.';
  $('inviteTitle').textContent=list?'Invită un administrator de familie':'Invită o persoană în '+app;
- $('inviteDescription').textContent=list?'Persoana invitată își creează familia și poate invita încă 3 membri.':'Invitația oferă acces doar la '+app+'. Persoana își alege singură parola.';
+ $('inviteDescription').textContent=list?'Persoana invitată își creează familia și poate invita încă 3 membri.':'Invitația oferă acces doar la '+app+'. Dacă persoana are deja cont, păstrează parola existentă.';
  $('appNote').textContent=data.notice||(list?'Maximum 4 persoane în fiecare familie, cu administratorul inclus. Invitațiile în așteptare ocupă locuri.':'Retragerea accesului păstrează datele și afectează doar '+app+'. Poți oferi din nou acces printr-o invitație.');
  const pending=data.invitations.filter(i=>i.status==='pending').length;
  const active=data.accounts.filter(a=>list?a.accepted_at:a.status==='active').length;
@@ -91,7 +91,7 @@ function handleAction(button){
  if(action==='resend'){mutate(app=>api(app,'resend',{id}),'Invitație retrimisă pe e-mail.');return;}
  const target=tab==='requests'?data.requests.find(r=>r.id===id)?.email:current==='mylist'?(data.invitations.find(i=>i.id===id)?.email||data.accounts.find(a=>a.user_id===id)?.email):id;
  const app=names[current];
- const descriptions={cancel:['Retragi invitația?','Invitația pentru '+app+' va fi retrasă.'+(current==='mylist'?' Locul ocupat în familie va deveni disponibil.':'')],revoke:['Retragi accesul la '+app+'?','Persoana nu va mai avea acces la '+app+'. Conturile din celelalte aplicații se păstrează.'],approve:['Aprobi accesul la MyCar?','Persoana va primi un e-mail cu invitația și își va alege singură parola.'],reject:['Respingi cererea?','Cererea va fi marcată ca respinsă.'],restore:['Oferi din nou acces la '+app+'?','Persoana va primi o nouă invitație pe e-mail.']};
+ const descriptions={cancel:['Retragi invitația?','Invitația pentru '+app+' va fi retrasă.'+(current==='mylist'?' Locul ocupat în familie va deveni disponibil.':'')],revoke:['Retragi accesul la '+app+'?','Persoana nu va mai avea acces la '+app+'. Conturile din celelalte aplicații se păstrează.'],approve:['Aprobi accesul la MyCar?','Persoana va primi invitația pe e-mail. Dacă are deja cont, păstrează parola existentă.'],reject:['Respingi cererea?','Cererea va fi marcată ca respinsă.'],restore:['Oferi din nou acces la '+app+'?','Persoana va primi o nouă invitație pe e-mail.']};
  if(!descriptions[action])return;
  confirmation={app:current,action,id,target};$('confirmTitle').textContent=descriptions[action][0];$('confirmDescription').textContent=descriptions[action][1];$('confirmTarget').textContent=target;$('confirmCheck').checked=false;$('confirmStatus').textContent='';$('confirmSubmit').textContent=({approve:'Aprobă și trimite',reject:'Respinge',restore:'Trimite invitația',cancel:'Retrage invitația',revoke:'Retrage accesul'})[action];$('confirmDialog').showModal();
 }

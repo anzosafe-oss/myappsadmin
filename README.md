@@ -11,10 +11,10 @@ Pagina de autentificare este publică, iar operațiile de administrare necesită
 ## Funcții disponibile
 
 - MyList: familii, conturi, invitații și retragerea accesului, folosind serviciile existente.
-- MyCar: conturi, invitațiile aprobate și aprobarea/respingerea cererilor existente. Invitațiile directe și retragerea accesului nu sunt activate.
+- MyCar: invitații directe, retrimitere, retragerea invitațiilor și a accesului, plus aprobarea/respingerea cererilor existente. Retragerea păstrează datele și nu afectează celelalte aplicații.
 - MyPet: integrarea nu este activată; necesită aprobarea accesului serviciului la informațiile conturilor.
 
-Codul de server este în `supabase/functions/myapps-admin/index.ts`. Componenta principală este publicată în proiectul Supabase folosit de MyList/MyCar. Componenta MyPet nu este publicată. Nicio modificare a regulilor RLS propuse anterior nu a fost aplicată.
+Codul de server este în `supabase/functions/myapps-admin/index.ts`. Componenta principală este publicată în proiectul Supabase folosit de MyList/MyCar. Componenta MyPet nu este publicată. Controlul accesului MyCar este descris în `supabase/mycar-access-control.sql`; este separat de MyList și MyPet.
 
 Codul client conține numai chei publicabile. Cheia service-role se citește exclusiv din mediul funcției server; nu adăuga chei secrete în acest repository.
 
@@ -25,7 +25,7 @@ node --check app.js
 node --test tests/admin.test.cjs
 ```
 
-Versiune: **1.0.2**.
+Versiune: **1.1.0**.
 
 ## Iconuri v2
 
