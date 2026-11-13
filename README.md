@@ -25,4 +25,8 @@ node --check app.js
 node --test tests/admin.test.cjs
 ```
 
-Versiune: **1.0.1**.
+Versiune: **1.0.2**.
+
+## Iconuri v2
+
+Simbolul 4B este afișat pe fundal verde închis complet opac. Iconul iOS este 180×180, iar Android folosește variante de 192×192 și 512×512, plus icon maskable cu simbolul în zona sigură. Numele fișierelor au sufixul `-v2` pentru actualizarea cache-ului. Iconurile vechi rămân disponibile pentru instalările existente.
