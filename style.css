@@ -8,3 +8,16 @@
 .app-symbol svg{display:block;width:25px;height:25px;flex:none}@media(max-width:650px){.app-symbol svg{width:21px;height:21px}}
 
 #logout{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px}#logout svg{display:block;width:20px;height:20px;flex:none;pointer-events:none}
+
+/* Stationary header and native-gesture suppression for mobile pull refresh. */
+:root{--admin-header-height:calc(78px + env(safe-area-inset-top,0px))}
+html{overscroll-behavior-y:none;scroll-padding-top:calc(var(--admin-header-height) + 12px)}
+body{padding-top:var(--admin-header-height);overscroll-behavior-y:none}
+header{position:fixed;top:0;left:0;right:0;padding-top:calc(17px + env(safe-area-inset-top,0px))}
+.pull-refresh-indicator{position:fixed;top:calc(var(--admin-header-height) + 10px);left:50%;transform:translateX(-50%);z-index:5;display:flex;align-items:center;justify-content:center;gap:9px;max-width:calc(100vw - 32px);padding:11px 16px;border:1px solid var(--line);border-radius:24px;background:var(--surface);color:var(--text);box-shadow:0 5px 20px #0002;pointer-events:none;font-size:12px;white-space:nowrap}
+.pull-refresh-indicator svg{width:20px;height:20px;flex:none}
+.pull-refresh-indicator[data-state=ready]{border-color:var(--accent)}
+.pull-refresh-indicator[data-state=loading] svg{animation:admin-refresh-spin .8s linear infinite}
+@keyframes admin-refresh-spin{to{transform:rotate(360deg)}}
+@media(max-width:650px){:root{--admin-header-height:calc(70px + env(safe-area-inset-top,0px))}header{padding-top:calc(13px + env(safe-area-inset-top,0px))}}
+@media(prefers-reduced-motion:reduce){.pull-refresh-indicator[data-state=loading] svg{animation:none}}

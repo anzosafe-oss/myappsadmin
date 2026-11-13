@@ -1,0 +1,53 @@
+/* Keep the header stationary and refresh dashboard data without navigation. */
+(()=>{
+'use strict';
+const header=document.querySelector('header');
+const root=document.documentElement;
+const measureHeader=()=>{if(header)root.style.setProperty('--admin-header-height',Math.ceil(header.getBoundingClientRect().height)+'px');};
+measureHeader();
+if(typeof ResizeObserver==='function'&&header)new ResizeObserver(measureHeader).observe(header);
+window.addEventListener('resize',measureHeader,{passive:true});
+window.visualViewport?.addEventListener('resize',measureHeader,{passive:true});
+if(navigator.maxTouchPoints<1)return;
+const indicator=document.createElement('div');
+indicator.id='pull-refresh-indicator';indicator.className='pull-refresh-indicator';indicator.hidden=true;
+indicator.setAttribute('role','status');indicator.setAttribute('aria-live','polite');indicator.setAttribute('aria-atomic','true');
+indicator.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.6-1L20 9M4 15l2.3 3A7 7 0 0 0 18 17"/></svg><span></span>';
+const label=indicator.querySelector('span');document.body.append(indicator);
+const THRESHOLD=88;
+let start=null,distance=0,pulling=false,refreshing=false,hideTimer=null;
+const atTop=()=>Math.max(window.scrollY||0,document.scrollingElement?.scrollTop||0)<=1;
+const blocked=()=>refreshing||document.visibilityState==='hidden'||!!document.querySelector('dialog[open]')||typeof session==='undefined'||!session||loading||mutating||document.getElementById('dashboard')?.hidden;
+const reset=()=>{start=null;distance=0;pulling=false;if(!refreshing){clearTimeout(hideTimer);indicator.hidden=true;delete indicator.dataset.state;}};
+function show(state,message){indicator.dataset.state=state;label.textContent=message;indicator.hidden=false;}
+function nestedScroller(target){for(let el=target;el&&el!==document.body;el=el.parentElement){if(el.scrollHeight>el.clientHeight+2&&/auto|scroll/.test(getComputedStyle(el).overflowY))return true;}return false;}
+document.addEventListener('touchstart',event=>{
+ reset();
+ if(blocked()||!atTop()||event.touches.length!==1||(window.visualViewport?.scale||1)>1)return;
+ if(event.target.closest?.('header,input,textarea,select,dialog,form,[contenteditable="true"]')||nestedScroller(event.target))return;
+ const touch=event.touches[0];start={x:touch.clientX,y:touch.clientY};
+},{passive:true});
+document.addEventListener('touchmove',event=>{
+ if(!start)return;
+ if(blocked()||!atTop()||event.touches.length!==1){reset();return;}
+ const touch=event.touches[0],dx=touch.clientX-start.x,dy=touch.clientY-start.y;
+ if(dy<0||(!pulling&&Math.abs(dx)>Math.max(8,Math.abs(dy)))){reset();return;}
+ if(dy<4&&!pulling)return;
+ if(!event.cancelable){reset();return;}
+ // Prevent native rubber-banding; only the indicator changes, never page/header position.
+ event.preventDefault();pulling=true;distance=Math.max(0,dy);
+ show(distance>=THRESHOLD?'ready':'pull',distance>=THRESHOLD?'Eliberează pentru actualizare':'Trage în jos pentru actualizare');
+},{passive:false});
+document.addEventListener('touchend',async event=>{
+ const run=!event.touches.length&&pulling&&distance>=THRESHOLD&&!blocked()&&atTop();
+ reset();if(!run)return;
+ refreshing=true;show('loading','Se actualizează…');
+ try{
+  await refresh({silent:true});
+  show('done',session&&!document.getElementById('appContent')?.hidden?'Date actualizate':'Actualizarea nu a reușit');
+ }catch{show('done','Actualizarea nu a reușit');}
+ finally{refreshing=false;hideTimer=setTimeout(reset,1400);}
+},{passive:true});
+document.addEventListener('touchcancel',reset,{passive:true});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')reset();});
+})();
