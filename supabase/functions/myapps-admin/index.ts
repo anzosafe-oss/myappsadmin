@@ -122,15 +122,51 @@ export async function handler(req){
    }
    return reply({error:'Acțiune invalidă.'},400);
   }
-  if(action!=='overview')return reply({error:'Această funcție nu este încă activată pentru aplicația selectată.'},409);
-  const users=[];
-  for(let page=1;page<=10;page++){
-   const result=ok(await db.auth.admin.listUsers({page,perPage:1000}));users.push(...result.users);
-   if(result.users.length<1000)break;
-   if(page===10)throw Error('Lista conturilor este prea mare pentru această pagină.');
+  const pet=db;
+  const APP='https://anzosafe-oss.github.io/mypet/';
+  async function sendPetInvite(rawEmail){
+   const email=String(rawEmail||'').trim().toLowerCase();
+   if(!validEmail(email))throw Error('Adresa de e-mail nu este validă.');
+   const reservation=ok(await pet.rpc('mypet_reserve_access_invite',{recipient:email}));
+   let delivered=false,recipientId=reservation.user_id||null;
+   try{
+    if(recipientId){
+     const existing=ok(await db.auth.admin.getUserById(recipientId)).user;
+     const client=createClient(url,'sb_publishable_9MJ6QZaJ13nfuwYJyLZSmA_WAh0Rret',{auth:{persistSession:false,autoRefreshToken:false}});
+     ok(await client.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:existing?.email_confirmed_at?APP:APP+'?type=invite'}}));
+    }else{
+     const invite=ok(await db.auth.admin.inviteUserByEmail(email,{redirectTo:APP+'?type=invite'}));
+     recipientId=invite.user?.id||null;
+     if(!recipientId)throw Error('Destinatarul nu a putut fi verificat.');
+    }
+    delivered=true;
+   }finally{
+    ok(await pet.rpc('mypet_finish_access_invite',{recipient:email,delivery:reservation.delivery_key,recipient_id:recipientId,delivered}));
+   }
+   return {ok:true};
   }
-  const accounts=users.map(u=>({id:u.id,email:u.email,active:!!u.email_confirmed_at&&!!u.last_sign_in_at,status:u.email_confirmed_at&&u.last_sign_in_at?'active':'pending',last_seen_at:u.last_sign_in_at,protected:u.email?.toLowerCase()===OWNER}));
-  return reply({accounts,invitations:[],requests:[],capabilities:{invite:false,resend:false,revoke:false,review:false},notice:'Vizualizare conturi MyPet. Invitațiile și retragerea accesului nu sunt încă activate.'});
+  if(action==='overview'){
+   const access=ok(await pet.from('mypet_app_access').select('email,user_id,status,created_at,updated_at,sent_at,send_count,error,last_seen_at').order('created_at',{ascending:false}).limit(1000));
+   return reply({accounts:access.map(a=>({id:a.user_id,email:a.email,status:a.status,active:a.status==='active',last_seen_at:a.last_seen_at,protected:a.email===OWNER})),invitations:access.filter(a=>a.send_count>0||a.status==='failed').map(a=>({...a,id:a.email,status:a.status==='active'?'accepted':a.status})),requests:[],capabilities:{invite:true,resend:true,revoke:true,review:false},notice:'Invitațiile și retragerea accesului se aplică doar MyPet. Carnetele și istoricul sunt păstrate. MyPet folosește un cont separat de MyCar și MyList.'});
+  }
+  if(action==='invite'||action==='resend'){
+   const email=String(action==='resend'?body.id:body.email||'').trim().toLowerCase();
+   if(action==='resend'){
+    const entry=ok(await pet.from('mypet_app_access').select('status').eq('email',email).maybeSingle());
+    if(!entry||!['pending','failed'].includes(entry.status))return reply({error:'Invitația nu mai poate fi retrimisă.'},409);
+   }
+   return reply(await sendPetInvite(email));
+  }
+  if(action==='revoke'||action==='cancel'){
+   const email=String(body.id||'').trim().toLowerCase();
+   if(!validEmail(email))return reply({error:'Adresă de e-mail invalidă.'},400);
+   if(action==='cancel'){
+    const entry=ok(await pet.from('mypet_app_access').select('status').eq('email',email).maybeSingle());
+    if(!entry||entry.status!=='pending')return reply({error:'Invitația nu mai este în așteptare.'},409);
+   }
+   ok(await pet.rpc('mypet_revoke_access',{recipient:email}));return reply({ok:true});
+  }
+  return reply({error:'Acțiune invalidă.'},400);
  }catch(error){console.error('MyAppsAdmin operation failed');return reply({error:error.message||'Operația nu a reușit. Reîncearcă.'},400)}
 }
 Deno.serve(handler);

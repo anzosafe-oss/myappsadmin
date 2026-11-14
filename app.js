@@ -5,7 +5,7 @@ const sb=supabase.createClient(MAIN,MAIN_KEY,{auth:{storageKey:'myappsadmin-auth
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const names={mylist:'MyList',mycar:'MyCar',mypet:'MyPet'};
 const emptyData=()=>({families:[],accounts:[],invitations:[],profiles:[],requests:[]});
-const LIVE_ENABLED=true;const MYPET_ENABLED=false;
+const LIVE_ENABLED=true;const MYPET_ENABLED=true;
 let session=null,current='mylist',tab='families',data=emptyData(),epoch=0,loading=false,mutating=false,confirmation=null,requestController=null;
 const tabsFor=app=>app==='mylist'?[['families','Familii'],['invitations','Invitații'],['accounts','Conturi active']]:app==='mycar'?[['accounts','Conturi'],['invitations','Invitații'],['requests','Cereri de acces']]:[['accounts','Conturi'],['invitations','Invitații']];
 const date=s=>s?new Date(s).toLocaleDateString('ro-RO',{day:'2-digit',month:'short',year:'numeric'}):'—';
@@ -49,7 +49,7 @@ function render(){
  const app=names[current],list=current==='mylist';const caps=data.capabilities||{};$('inviteForm').closest('.invite-panel').hidden=!caps.invite;$('appTitle').textContent=app;$('openApp').href='https://anzosafe-oss.github.io/'+current+'/';
  $('intro').textContent=list?'Familiile, conturile și invitațiile MyList.':'Conturile și accesul la '+app+'.';
  $('inviteTitle').textContent=list?'Invită un administrator de familie':'Invită o persoană în '+app;
- $('inviteDescription').textContent=list?'Persoana invitată își creează familia și poate invita încă 3 membri.':'Invitația oferă acces doar la '+app+'. Dacă persoana are deja cont, păstrează parola existentă.';
+ $('inviteDescription').textContent=current==='mypet'?'Invitația oferă acces doar la MyPet. Contul MyPet este separat de MyCar și MyList.':list?'Persoana invitată își creează familia și poate invita încă 3 membri.':'Invitația oferă acces doar la '+app+'. Dacă persoana are deja cont, păstrează parola existentă.';
  $('appNote').textContent=data.notice||(list?'Maximum 4 persoane în fiecare familie, cu administratorul inclus. Invitațiile în așteptare ocupă locuri.':'Retragerea accesului păstrează datele și afectează doar '+app+'. Poți oferi din nou acces printr-o invitație.');
  const pending=data.invitations.filter(i=>i.status==='pending').length;
  const active=data.accounts.filter(a=>list?a.accepted_at:a.status==='active').length;
