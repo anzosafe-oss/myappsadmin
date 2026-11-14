@@ -1,6 +1,6 @@
 'use strict';
-const MAIN='https://radskybbymadavveatzn.supabase.co',PET='https://caajrctjlxehhofuwhag.supabase.co';
-const MAIN_KEY='sb_publishable_VJh0qSiBA0OIcG7YqnLyjA_-YwiTlMT',PET_KEY='sb_publishable_9MJ6QZaJ13nfuwYJyLZSmA_WAh0Rret';
+const MAIN='https://radskybbymadavveatzn.supabase.co',PET='https://radskybbymadavveatzn.supabase.co';
+const MAIN_KEY='sb_publishable_VJh0qSiBA0OIcG7YqnLyjA_-YwiTlMT',PET_KEY='sb_publishable_VJh0qSiBA0OIcG7YqnLyjA_-YwiTlMT';
 const sb=supabase.createClient(MAIN,MAIN_KEY,{auth:{storageKey:'myappsadmin-auth-v1',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const names={mylist:'MyList',mycar:'MyCar',mypet:'MyPet'};

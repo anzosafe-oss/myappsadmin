@@ -30,7 +30,7 @@ export async function handler(req){
   if(!body||typeof body!=='object')return reply({error:'Cerere invalidă.'},400);
   const {app,action}=body;
   const petProject=url.includes('caajrctjlxehhofuwhag');
-  if(!(petProject?app==='mypet':['mylist','mycar'].includes(app)))return reply({error:'Aplicație invalidă.'},400);
+  if(!['mylist','mycar','mypet'].includes(app))return reply({error:'Aplicație invalidă.'},400);
   async function proxy(name,payload){
    const response=await fetch(MAIN+'/functions/v1/'+name,{method:'POST',headers:{'Content-Type':'application/json',apikey:MAIN_KEY,Authorization:'Bearer '+token,Origin:'https://anzosafe-oss.github.io'},body:JSON.stringify(payload),signal:AbortSignal.timeout(25000)});
    const data=await response.json();if(!response.ok||data.error)throw Error(data.error||'Operația nu a reușit.');return data;
@@ -132,7 +132,7 @@ export async function handler(req){
    try{
     if(recipientId){
      const existing=ok(await db.auth.admin.getUserById(recipientId)).user;
-     const client=createClient(url,'sb_publishable_9MJ6QZaJ13nfuwYJyLZSmA_WAh0Rret',{auth:{persistSession:false,autoRefreshToken:false}});
+     const client=createClient(url,MAIN_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
      ok(await client.auth.signInWithOtp({email,options:{shouldCreateUser:false,emailRedirectTo:existing?.email_confirmed_at?APP:APP+'?type=invite'}}));
     }else{
      const invite=ok(await db.auth.admin.inviteUserByEmail(email,{redirectTo:APP+'?type=invite'}));
@@ -147,7 +147,7 @@ export async function handler(req){
   }
   if(action==='overview'){
    const access=ok(await pet.from('mypet_app_access').select('email,user_id,status,created_at,updated_at,sent_at,send_count,error,last_seen_at').order('created_at',{ascending:false}).limit(1000));
-   return reply({accounts:access.map(a=>({id:a.user_id,email:a.email,status:a.status,active:a.status==='active',last_seen_at:a.last_seen_at,protected:a.email===OWNER})),invitations:access.filter(a=>a.send_count>0||a.status==='failed').map(a=>({...a,id:a.email,status:a.status==='active'?'accepted':a.status})),requests:[],capabilities:{invite:true,resend:true,revoke:true,review:false},notice:'Invitațiile și retragerea accesului se aplică doar MyPet. Carnetele și istoricul sunt păstrate. MyPet folosește un cont separat de MyCar și MyList.'});
+   return reply({accounts:access.map(a=>({id:a.user_id,email:a.email,status:a.status,active:a.status==='active',last_seen_at:a.last_seen_at,protected:a.email===OWNER})),invitations:access.filter(a=>a.send_count>0||a.status==='failed').map(a=>({...a,id:a.email,status:a.status==='active'?'accepted':a.status})),requests:[],capabilities:{invite:true,resend:true,revoke:true,review:false},notice:'Invitațiile și retragerea accesului se aplică doar MyPet. Carnetele și istoricul sunt păstrate. MyPet folosește contul comun cu MyCar și MyList.'});
   }
   if(action==='invite'||action==='resend'){
    const email=String(action==='resend'?body.id:body.email||'').trim().toLowerCase();
