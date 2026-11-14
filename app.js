@@ -95,7 +95,7 @@ function handleAction(button){
  if(!descriptions[action])return;
  confirmation={app:current,action,id,target};$('confirmTitle').textContent=descriptions[action][0];$('confirmDescription').textContent=descriptions[action][1];$('confirmTarget').textContent=target;$('confirmCheck').checked=false;$('confirmStatus').textContent='';$('confirmSubmit').textContent=({approve:'Aprobă și trimite',reject:'Respinge',restore:'Trimite invitația',cancel:'Retrage invitația',revoke:'Retrage accesul'})[action];$('confirmDialog').showModal();
 }
-$('theme').onchange=e=>{try{localStorage.setItem('myappsadmin-theme',e.target.value)}catch{}applyTheme()};applyTheme();
+applyTheme();
 $('showPassword').onclick=()=>{const show=$('password').type==='password';$('password').type=show?'text':'password';$('showPassword').textContent=show?'Ascunde':'Arată';$('showPassword').setAttribute('aria-label',show?'Ascunde parola':'Arată parola');$('showPassword').setAttribute('aria-pressed',String(show));};
 $('loginForm').onsubmit=async e=>{e.preventDefault();if(!LIVE_ENABLED)return;$('loginButton').disabled=true;$('loginStatus').textContent='Se verifică datele…';try{const r=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(r.error)throw r.error;$('password').value='';session=r.data.session;await refresh();}catch{$('loginStatus').textContent='Conectarea nu a reușit. Verifică e-mailul și parola.';}finally{$('loginButton').disabled=false;}};
 $('logout').onclick=async()=>{if(mutating)return;session=null;reset();if(LIVE_ENABLED)await sb.auth.signOut({scope:'local'});};

@@ -21,3 +21,10 @@ header{position:fixed;top:0;left:0;right:0;padding-top:calc(17px + env(safe-area
 @keyframes admin-refresh-spin{to{transform:rotate(360deg)}}
 @media(max-width:650px){:root{--admin-header-height:calc(70px + env(safe-area-inset-top,0px))}header{padding-top:calc(13px + env(safe-area-inset-top,0px))}}
 @media(prefers-reduced-motion:reduce){.pull-refresh-indicator[data-state=loading] svg{animation:none}}
+
+/* Theme action: show the destination theme with consistent SVG icons. */
+.header-tools #theme{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;min-height:44px;padding:0;flex:none}
+#theme svg{display:block;width:20px;height:20px;pointer-events:none}
+#theme .theme-sun{display:none}
+html[data-theme=dark] #theme .theme-sun{display:block}
+html[data-theme=dark] #theme .theme-moon{display:none}
