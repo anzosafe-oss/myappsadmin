@@ -50,3 +50,5 @@ Gmail SMTP și toate funcțiile Auth rămân neschimbate. Cele patru template-ur
 Regenerare: `node scripts/build-email-templates.cjs`. Verificare cu motorul real Supabase/Go: `go run scripts/verify-email-templates.go`; apoi `node --test tests/*.test.cjs`. Testele folosesc linkuri fictive, nu creează conturi și nu trimit emailuri.
 
 Testele locale verifică structura, randarea responsive și compatibilitatea sintactică Go. Livrarea Gmail SMTP și afișarea în aplicațiile reale Gmail/Outlook/iOS Mail necesită testare pe destinatari autorizați; aceste teste nu se execută fără aprobare.
+
+Subiectul folosește o formulă compactă de 223 de caractere pentru limita Supabase de 255; identifică ruta aplicației și adresa istorică de preview MyList. Această etichetă este exclusiv cosmetică. Designul, CTA-ul și fallback-ul se aleg în continuare prin compararea adresei complete, fără acces acordat pe baza subiectului.

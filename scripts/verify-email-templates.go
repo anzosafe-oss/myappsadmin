@@ -1,10 +1,10 @@
 package main
-import("bytes";"encoding/json";"fmt";"html";"html/template";"os";"path/filepath";"strings")
+import("bytes";"encoding/json";"fmt";"html";"html/template";"os";"path/filepath";"strings";"unicode/utf8")
 type Brand struct{ID string `json:"id"`; Name string `json:"name"`; URLs []string `json:"urls"`}
 func must(ok bool,message string){if !ok{panic(message)}}
 func execute(file string,data map[string]any)string{raw,e:=os.ReadFile(file);if e!=nil{panic(e)};t,e:=template.New(file).Parse(string(raw));if e!=nil{panic(e)};var out bytes.Buffer;if e=t.Execute(&out,data);e!=nil{panic(e)};return out.String()}
 func main(){root:="supabase/email-templates";raw,e:=os.ReadFile(filepath.Join(root,"brands.json"));if e!=nil{panic(e)};var brands []Brand;if e=json.Unmarshal(raw,&brands);e!=nil{panic(e)};tests:=0
- for _,flow:=range []string{"invite","magic-link"}{for _,b:=range brands{for _,url:=range b.URLs{
+ for _,flow:=range []string{"invite","magic-link"}{subjectRaw,_:=os.ReadFile(filepath.Join(root,flow+"-subject.txt"));must(utf8.RuneCount(subjectRaw)<=255,"Subject template exceeds Supabase limit");for _,b:=range brands{for _,url:=range b.URLs{
  link:="https://test.supabase.co/auth/v1/verify?token=CONTROLLED_TEST&type=invite&redirect_to="+url
  data:=map[string]any{"RedirectTo":url,"ConfirmationURL":link,"Data":map[string]any{"app":"forged-app"}}
  subject:=execute(filepath.Join(root,flow+"-subject.txt"),data);body:=execute(filepath.Join(root,flow+".html"),data)
