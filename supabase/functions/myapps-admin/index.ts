@@ -10,8 +10,19 @@ function canRemoveAddress(data,email,app){
  if(!email||email==='anzo.safe@gmail.com')return false;
  const accounts=(data.accounts||[]).filter(a=>a.email===email);
  const invitations=(data.invitations||[]).filter(i=>i.email===email);
- if(app==='mylist')return accounts.length===0&&invitations.length>0&&invitations.every(i=>['cancelled','revoked'].includes(i.status));
+ if(app==='mylist')return accounts.every(a=>a.status==='revoked'&&!a.is_admin)&&invitations.length>0&&invitations.every(i=>['cancelled','revoked'].includes(i.status));
  return accounts.length>0&&accounts.every(a=>a.status==='revoked'&&!a.protected)&&!invitations.some(i=>['pending','accepted','active'].includes(i.status));
+}
+// Keep withdrawn MyList accounts visible until explicitly removed.
+function listOverview(data){
+ const accounts=(data.accounts||[]).map(a=>({...a,status:a.accepted_at?'active':'pending',protected:!!a.is_admin}));
+ const seen=new Set(accounts.map(a=>a.email));
+ for(const i of data.invitations||[]){
+  if(!seen.has(i.email)&&(data.invitations||[]).filter(v=>v.email===i.email).every(v=>['cancelled','revoked'].includes(v.status))){
+   seen.add(i.email);accounts.push({email:i.email,family_id:i.family_id,status:'revoked',accepted_at:null,is_admin:false});
+  }
+ }
+ return {...data,accounts};
 }
 async function visibleOverview(db,app,data){
  const result=await db.from('myapps_admin_hidden').select('email').eq('app',app);
@@ -62,8 +73,9 @@ export async function handler(req){
    const data=await response.json();if(!response.ok||data.error)throw Error(data.error||'Operația nu a reușit.');return data;
   }
   if(app==='mylist'){
-   if(action==='remove')return await removeAddress(db,app,overview.data,body.id)?reply({ok:true}):reply({error:'Retrage mai întâi accesul și invitațiile active.'},409);
-   if(action==='overview')return reply(await visibleOverview(db,app,{...overview.data,capabilities:{invite:true,resend:true,revoke:true,review:false}}));
+   const listData=listOverview(overview.data);
+   if(action==='remove')return await removeAddress(db,app,listData,body.id)?reply({ok:true}):reply({error:'Retrage mai întâi accesul și invitațiile active.'},409);
+   if(action==='overview')return reply(await visibleOverview(db,app,{...listData,capabilities:{invite:true,resend:true,revoke:true,review:false}}));
    if(action==='invite'){const result=await proxy('mylist-invite',{email:body.email,kind:'administrator'});await restoreAddress(db,app,result.email||String(body.email).trim().toLowerCase());return reply(result);}
    if(action==='resend'){
     const i=overview.data.invitations.find(i=>i.id===body.id&&['pending','failed'].includes(i.status));
@@ -71,9 +83,10 @@ export async function handler(req){
     const result=await proxy('mylist-invite',{email:i.email,kind:i.kind});await restoreAddress(db,app,i.email);return reply(result);
    }
    if(action==='cancel'||action==='revoke'){
-    const entry=action==='cancel'?overview.data.invitations.find(i=>i.id===body.id&&i.status==='pending'):overview.data.accounts.find(a=>a.user_id===body.id);
+    const entry=action==='cancel'?overview.data.invitations.find(i=>i.id===body.id&&i.status==='pending'):overview.data.accounts.find(a=>a.user_id===body.id||a.email===body.id);
     if(!entry)return reply({error:'Contul sau invitația nu mai există.'},404);
-    ok(await caller.rpc('mylist_action',{op:action==='cancel'?'cancel_invite':'remove_account',p:{email:entry.email}}));return reply({ok:true});
+    if(action==='cancel')ok(await caller.rpc('mylist_action',{op:'cancel_invite',p:{email:entry.email}}));
+    else ok(await caller.rpc('mylist_admin_revoke_account',{recipient:entry.email}));return reply({ok:true});
    }
    return reply({error:'Acțiune invalidă.'},400);
   }

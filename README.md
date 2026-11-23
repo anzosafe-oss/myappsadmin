@@ -52,3 +52,7 @@ Regenerare: `node scripts/build-email-templates.cjs`. Verificare cu motorul real
 Testele locale verifică structura, randarea responsive și compatibilitatea sintactică Go. Livrarea Gmail SMTP și afișarea în aplicațiile reale Gmail/Outlook/iOS Mail necesită testare pe destinatari autorizați; aceste teste nu se execută fără aprobare.
 
 Subiectul folosește o formulă compactă de 223 de caractere pentru limita Supabase de 255; identifică ruta aplicației și adresa istorică de preview MyList. Această etichetă este exclusiv cosmetică. Designul, CTA-ul și fallback-ul se aleg în continuare prin compararea adresei complete, fără acces acordat pe baza subiectului.
+
+## Administrarea conturilor MyList — v1.5.1
+
+Tabul Conturi include accesul retras până la „Elimină din listă”. Administratorul global poate retrage și accesul administratorilor de familie; conturile globale `is_admin` rămân protejate. RPC-ul `mylist_admin_revoke_account` verifică din nou rolul administrativ în baza de date, retrage autorizarea și partajările primite, anulează invitațiile și eliberează locul. Listele, produsele, profilul și identitatea Auth se păstrează. Dacă persoana conduce familia, `admin_id` devine null; ceilalți membri își păstrează accesul, iar reinvitarea proprietarului poate restabili rolul. Pentru conturi istorice fără invitație se păstrează un marcaj cancelled cu zero trimiteri. Eliminarea ascunde doar adresa din MyAppsAdmin, separat pentru MyList. Nu se trimit emailuri prin retragere sau eliminare.
