@@ -3,7 +3,7 @@ const MAIN='https://radskybbymadavveatzn.supabase.co',PET='https://radskybbymada
 const MAIN_KEY='sb_publishable_VJh0qSiBA0OIcG7YqnLyjA_-YwiTlMT',PET_KEY='sb_publishable_VJh0qSiBA0OIcG7YqnLyjA_-YwiTlMT';
 const sb=supabase.createClient(MAIN,MAIN_KEY,{auth:{storageKey:'myappsadmin-auth-v1',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const names={mylist:'MyList',mycar:'MyCar',mypet:'MyPet'};
+const names={mylist:'MyList',mycar:'MyCar',mypet:'MyPet',anonymous:'Anonimous'};
 const emptyData=()=>({families:[],accounts:[],invitations:[],profiles:[],requests:[]});
 const LIVE_ENABLED=true;const MYPET_ENABLED=true;
 let session=null,current='mylist',tab='families',data=emptyData(),epoch=0,loading=false,mutating=false,confirmation=null,requestController=null;
@@ -14,8 +14,8 @@ function reset(){epoch++;requestController?.abort();requestController=null;loadi
 async function api(app,action,payload={},signal){
  if(app==='mypet'&&!MYPET_ENABLED)throw Error('Conectarea MyPet nu este încă activată. MyList și MyCar sunt disponibile.');
  const active=session;if(!active)throw Error('Conectează-te din nou.');
- const pet=app==='mypet';
- const response=await fetch((pet?PET:MAIN)+'/functions/v1/myapps-admin',{method:'POST',headers:{apikey:pet?PET_KEY:MAIN_KEY,Authorization:'Bearer '+active.access_token,'Content-Type':'application/json'},body:JSON.stringify({app,action,...payload}),signal:signal||AbortSignal.timeout(35000)});
+ const pet=app==='mypet',barber=app==='anonymous';
+ const response=await fetch((barber?'https://caajrctjlxehhofuwhag.supabase.co':pet?PET:MAIN)+'/functions/v1/'+(barber?'anonymous-admin':'myapps-admin'),{method:'POST',headers:{apikey:barber?'sb_publishable_9MJ6QZaJ13nfuwYJyLZSmA_WAh0Rret':pet?PET_KEY:MAIN_KEY,Authorization:'Bearer '+active.access_token,'Content-Type':'application/json'},body:JSON.stringify({app,action,...payload}),signal:signal||AbortSignal.timeout(35000)});
  let result;try{result=await response.json()}catch{throw Error('Serviciul nu a răspuns. Reîncearcă.');}
  if(!response.ok||result.error)throw Error(result.error||'Operația nu a reușit.');return result;
 }
@@ -41,7 +41,7 @@ async function refresh({silent=false}={}){
 function selectApp(app){if(mutating||app===current)return;current=app;tab=tabsFor(app)[0][0];epoch++;requestController?.abort();loading=false;data=emptyData();$('intro').textContent='Conturile și accesul la '+names[app]+'.';$('search').value='';$('inviteEmail').value='';$('rows').replaceChildren();$('metrics').replaceChildren();document.querySelectorAll('[data-app]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.app===app)));refresh();}
 function profile(id){return data.profiles.find(p=>p.user_id===id)}
 function family(id){return data.families.find(f=>f.id===id)}
-function alias(a){return profile(a?.user_id)?.alias||a?.email||'Administrator invitat'}
+function alias(a){return profile(a?.user_id||a?.id)?.alias||a?.email||'Administrator invitat'}
 function matches(...values){const q=$('search').value.trim().toLocaleLowerCase('ro');return values.some(v=>String(v||'').toLocaleLowerCase('ro').includes(q))}
 function badge(status){const labels={active:'Cont activ',pending:'În așteptare',accepted:'Acceptată',revoked:'Acces retras',cancelled:'Acces retras',failed:'E-mail netrimis',approved:'Invitație trimisă',rejected:'Respinsă',sending:'Se trimite'};return `<span class="pill ${esc(status)}">${esc(labels[status]||status)}</span>`}
 function actionButton(action,id,label,danger=false){return `<button type="button" data-action="${esc(action)}" data-id="${esc(id)}"${danger?' class="danger"':''}>${esc(label)}</button>`}
@@ -49,7 +49,7 @@ function render(){
  const app=names[current],list=current==='mylist';const caps=data.capabilities||{};$('inviteForm').closest('.invite-panel').hidden=!caps.invite;$('appTitle').textContent=app;$('openApp').href='https://anzosafe-oss.github.io/'+current+'/';
  $('intro').textContent=list?'Familiile, conturile și invitațiile MyList.':'Conturile și accesul la '+app+'.';
  $('inviteTitle').textContent=list?'Invită un administrator de familie':'Invită o persoană în '+app;
- $('inviteDescription').textContent=current==='mypet'?'Invitația oferă acces doar la MyPet. Contul MyPet este separat de MyCar și MyList.':list?'Persoana invitată își creează familia și poate invita încă 3 membri.':'Invitația oferă acces doar la '+app+'. Dacă persoana are deja cont, păstrează parola existentă.';
+ $('inviteDescription').textContent=current==='anonymous'?'Invitația creează profilul frizerului și oferă acces doar la agenda sa Anonimous.':list?'Persoana invitată își creează familia și poate invita încă 3 membri.':'Invitația oferă acces doar la '+app+'. Dacă persoana are deja cont, păstrează parola existentă.';
  $('appNote').textContent=data.notice||(list?'Maximum 4 persoane în fiecare familie, cu administratorul inclus. Invitațiile în așteptare ocupă locuri.':'Retragerea accesului păstrează datele și afectează doar '+app+'. Poți oferi din nou acces printr-o invitație.');
  const pending=data.invitations.filter(i=>i.status==='pending').length;
  const active=data.accounts.filter(a=>list?a.accepted_at:a.status==='active').length;
@@ -71,7 +71,7 @@ function renderRows(){
  if(tab==='accounts')rows=data.accounts.filter(a=>(!list||a.accepted_at)&&matches(a.email,alias(a),family(a.family_id)?.owner_email)).map(a=>{
  const f=family(a.family_id),protectedAccount=list?(a.is_admin||f?.admin_id===a.user_id):a.protected;
  const role=list?(a.is_admin?'Administrator MyList':f?.admin_id===a.user_id?'Administrator de familie':'Membru'):(a.protected?'Administrator':names[current]);
- return `<article class="row"><span class="avatar" aria-hidden="true">${esc(alias(a).charAt(0).toLocaleUpperCase('ro'))}</span><div class="row-info"><strong>${esc(alias(a))}</strong>${list&&profile(a.user_id)?.alias?'<small>'+esc(a.email)+'</small>':''}<small>${role}${list?' · Familia '+esc(f?.owner_email||''):a.last_seen_at?' · Ultima conectare: '+date(a.last_seen_at):''}</small></div>${protectedAccount?'<span class="pill">Protejat</span>':badge(list?'active':a.status)}<div class="row-actions">${protectedAccount||!data.capabilities?.revoke?'':!list&&['revoked','failed'].includes(a.status)?actionButton('restore',a.email,'Invită din nou'):actionButton('revoke',list?a.user_id:a.email,'Retrage accesul',true)}</div></article>`;
+ return `<article class="row"><span class="avatar" aria-hidden="true">${esc(alias(a).charAt(0).toLocaleUpperCase('ro'))}</span><div class="row-info"><strong>${esc(alias(a))}</strong>${(list&&profile(a.user_id)?.alias||current==='anonymous'&&profile(a.id)?.alias)?'<small>'+esc(a.email)+'</small>':''}<small>${role}${list?' · Familia '+esc(f?.owner_email||''):a.last_seen_at?' · Ultima conectare: '+date(a.last_seen_at):''}</small></div>${protectedAccount?'<span class="pill">Protejat</span>':badge(list?'active':a.status)}<div class="row-actions">${protectedAccount||!data.capabilities?.revoke?'':!list&&['revoked','failed'].includes(a.status)?actionButton('restore',a.email,'Invită din nou'):actionButton('revoke',list?a.user_id:a.email,'Retrage accesul',true)}</div></article>`;
  });
  if(tab==='requests')rows=data.requests.filter(r=>matches(r.email)).map(r=>`<article class="row"><div class="row-info"><strong>${esc(r.email)}</strong><small>${date(r.created_at)}${r.invite_error?' · '+esc(r.invite_error):''}</small></div>${badge(r.status)}<div class="row-actions">${r.status==='pending'?actionButton('approve',r.id,'Aprobă')+actionButton('reject',r.id,'Respinge',true):''}</div></article>`);
  const searching=$('search').value.trim();const messages={families:['Încă nu există familii','Invită primul administrator de familie folosind formularul de mai sus.'],invitations:['Nicio invitație de afișat','Invitațiile trimise vor apărea aici, împreună cu starea lor.'],accounts:['Niciun cont de afișat','Conturile aplicației selectate vor apărea aici.'],requests:['Nicio cerere de acces','Cererile primite din MyCar vor apărea aici.']};

@@ -32,3 +32,7 @@ Versiune: **1.2.0**.
 Simbolul 4B este afișat pe fundal verde închis complet opac. Iconul iOS este 180×180, iar Android folosește variante de 192×192 și 512×512, plus icon maskable cu simbolul în zona sigură. Numele fișierelor au sufixul `-v2` pentru actualizarea cache-ului. Iconurile vechi rămân disponibile pentru instalările existente.
 
 Controlul accesului MyPet: `supabase/mypet-access-control.sql`. Verificări izolate cu rollback: `tests/mypet-access-control.sql`. Registrul este accesibil doar serviciului, iar politicile restrictive păstrează regulile existente de proprietate și confirmare a parolei.
+
+## Anonimous — v1.3.0
+
+Administrare din contul global autorizat: profiluri, invitații, retrimitere, retragere și reinvitare. Serviciul `anonymous-admin` rulează în proiectul MyGames și verifică identitatea și rolul administratorului în proiectul principal. `supabase/anonymous-access-control.sql` păstrează profilurile existente și izolează accesul de celelalte aplicații. Programările nu sunt șterse la retragerea accesului. Aliasul se personalizează din setările agendei.
