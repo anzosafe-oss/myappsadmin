@@ -36,3 +36,7 @@ Controlul accesului MyPet: `supabase/mypet-access-control.sql`. Verificări izol
 ## Anonimous — v1.3.0
 
 Administrare din contul global autorizat: profiluri, invitații, retrimitere, retragere și reinvitare. Serviciul `anonymous-admin` rulează în proiectul MyGames și verifică identitatea și rolul administratorului în proiectul principal. `supabase/anonymous-access-control.sql` păstrează profilurile existente și izolează accesul de celelalte aplicații. Programările nu sunt șterse la retragerea accesului. Aliasul se personalizează din setările agendei.
+
+## Eliminarea adreselor din listă — v1.4.0
+
+După retragerea accesului sau anularea invitației, administratorul poate elimina adresa din lista aplicației. Marcajele se păstrează server-side în `myapps_admin_hidden`, separat pentru fiecare aplicație. Nu se șterg utilizatori Auth, apartenențe sau date. Invitarea din nou șterge marcajul; accesul activ sau în așteptare nu poate fi ascuns. SQL-ul se aplică în ambele proiecte: `supabase/admin-hidden-emails.sql`.

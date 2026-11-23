@@ -5,6 +5,32 @@ const OWNER='anzo.safe@gmail.com';
 const ORIGINS=new Set(['https://myappsadmin-anzo.zota-andrei.chatgpt.site','https://anzosafe-oss.github.io']);
 const ok=r=>{if(r.error)throw Error(r.error.message);return r.data};
 const validEmail=s=>typeof s==='string'&&s.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+// Removing an address from the admin list never deletes Auth users or application records.
+function canRemoveAddress(data,email,app){
+ if(!email||email==='anzo.safe@gmail.com')return false;
+ const accounts=(data.accounts||[]).filter(a=>a.email===email);
+ const invitations=(data.invitations||[]).filter(i=>i.email===email);
+ if(app==='mylist')return accounts.length===0&&invitations.length>0&&invitations.every(i=>['cancelled','revoked'].includes(i.status));
+ return accounts.length>0&&accounts.every(a=>a.status==='revoked'&&!a.protected)&&!invitations.some(i=>['pending','accepted','active'].includes(i.status));
+}
+async function visibleOverview(db,app,data){
+ const result=await db.from('myapps_admin_hidden').select('email').eq('app',app);
+ if(result.error)throw Error(result.error.message);
+ const hidden=new Set((result.data||[]).map(r=>r.email).filter(email=>canRemoveAddress(data,email,app)));
+ const removedIds=new Set((data.accounts||[]).filter(a=>hidden.has(a.email)).map(a=>a.user_id||a.id));
+ return {...data,accounts:(data.accounts||[]).filter(a=>!hidden.has(a.email)).map(a=>({...a,can_remove:canRemoveAddress(data,a.email,app)})),invitations:(data.invitations||[]).filter(i=>!hidden.has(i.email)).map(i=>({...i,can_remove:canRemoveAddress(data,i.email,app)})),profiles:(data.profiles||[]).filter(p=>!removedIds.has(p.user_id)),requests:(data.requests||[]).filter(r=>!hidden.has(r.email)||['pending','sending'].includes(r.status))};
+}
+async function removeAddress(db,app,data,rawEmail){
+ const email=String(rawEmail||'').trim().toLowerCase();
+ if(!canRemoveAddress(data,email,app))return false;
+ const result=await db.from('myapps_admin_hidden').upsert({app,email},{onConflict:'app,email'});
+ if(result.error)throw Error(result.error.message);return true;
+}
+async function restoreAddress(db,app,email){
+ const result=await db.from('myapps_admin_hidden').delete().eq('app',app).eq('email',email);
+ if(result.error)throw Error(result.error.message);
+}
+
 export async function handler(req){
  const origin=req.headers.get('origin')||'';
  const headers={'Access-Control-Allow-Origin':ORIGINS.has(origin)?origin:'https://myappsadmin-anzo.zota-andrei.chatgpt.site','Access-Control-Allow-Headers':'authorization, apikey, content-type, x-client-info','Access-Control-Allow-Methods':'POST, OPTIONS','Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin'};
@@ -36,12 +62,13 @@ export async function handler(req){
    const data=await response.json();if(!response.ok||data.error)throw Error(data.error||'Operația nu a reușit.');return data;
   }
   if(app==='mylist'){
-   if(action==='overview')return reply({...overview.data,capabilities:{invite:true,resend:true,revoke:true,review:false}});
-   if(action==='invite')return reply(await proxy('mylist-invite',{email:body.email,kind:'administrator'}));
+   if(action==='remove')return await removeAddress(db,app,overview.data,body.id)?reply({ok:true}):reply({error:'Retrage mai întâi accesul și invitațiile active.'},409);
+   if(action==='overview')return reply(await visibleOverview(db,app,{...overview.data,capabilities:{invite:true,resend:true,revoke:true,review:false}}));
+   if(action==='invite'){const result=await proxy('mylist-invite',{email:body.email,kind:'administrator'});await restoreAddress(db,app,result.email||String(body.email).trim().toLowerCase());return reply(result);}
    if(action==='resend'){
     const i=overview.data.invitations.find(i=>i.id===body.id&&['pending','failed'].includes(i.status));
     if(!i)return reply({error:'Invitația nu mai poate fi retrimisă.'},409);
-    return reply(await proxy('mylist-invite',{email:i.email,kind:i.kind}));
+    const result=await proxy('mylist-invite',{email:i.email,kind:i.kind});await restoreAddress(db,app,i.email);return reply(result);
    }
    if(action==='cancel'||action==='revoke'){
     const entry=action==='cancel'?overview.data.invitations.find(i=>i.id===body.id&&i.status==='pending'):overview.data.accounts.find(a=>a.user_id===body.id);
@@ -54,6 +81,10 @@ export async function handler(req){
   if(app==='mycar'){
    const admins=ok(await car.from('invitation_admins').select('user_id'));
    if(!admins.some(a=>a.user_id===actor.id))return reply({error:'Acces rezervat administratorului MyCar.'},403);
+   if(action==='remove'){
+    const accounts=ok(await car.from('app_access').select('email,user_id,status')).map(a=>({...a,protected:admins.some(v=>v.user_id===a.user_id)}));
+    return await removeAddress(db,app,{accounts},body.id)?reply({ok:true}):reply({error:'Doar adresele cu acces retras pot fi eliminate.'},409);
+   }
    const APP='https://anzosafe-oss.github.io/mycar/';
    async function sendCarInvite(rawEmail){
     const email=String(rawEmail||'').trim().toLowerCase();
@@ -75,7 +106,7 @@ export async function handler(req){
     }finally{
      ok(await car.rpc('finish_access_invite',{recipient:email,delivery:reservation.delivery_key,recipient_id:recipientId,delivered}));
     }
-    return {email,user_id:recipientId};
+    await restoreAddress(db,app,email);return {email,user_id:recipientId};
    }
    if(action==='overview'){
     const access=ok(await car.from('app_access').select('email,user_id,status,created_at,updated_at,sent_at,send_count,error').order('created_at',{ascending:false}).limit(1000));
@@ -83,7 +114,7 @@ export async function handler(req){
     const requests=ok(await car.from('invitation_requests').select('id,email,status,created_at,updated_at,invite_error,invited_user_id').order('created_at',{ascending:false}).limit(1000));
     const accounts=access.map(a=>({id:a.user_id,email:a.email,status:a.status,active:a.status==='active',last_seen_at:activity.find(v=>v.user_id===a.user_id)?.last_seen_at||null,protected:a.email===OWNER||admins.some(v=>v.user_id===a.user_id)}));
     const invitations=access.filter(a=>a.send_count>0||a.status==='failed').map(a=>({...a,id:a.email,status:a.status==='active'?'accepted':a.status}));
-    return reply({accounts,invitations,requests,capabilities:{invite:true,resend:true,revoke:true,review:true},notice:'Invitațiile și retragerea accesului se aplică doar MyCar. Datele conturilor sunt păstrate. Conturile existente în celelalte aplicații pot folosi parola lor.'});
+    return reply(await visibleOverview(db,app,{accounts,invitations,requests,capabilities:{invite:true,resend:true,revoke:true,review:true},notice:'Invitațiile și retragerea accesului se aplică doar MyCar. Datele conturilor sunt păstrate. Conturile existente în celelalte aplicații pot folosi parola lor.'}));
    }
    if(action==='invite'||action==='resend'){
     const email=String(action==='resend'?body.id:body.email||'').trim().toLowerCase();
@@ -123,6 +154,7 @@ export async function handler(req){
    return reply({error:'Acțiune invalidă.'},400);
   }
   const pet=db;
+  if(action==='remove'){const accounts=ok(await pet.from('mypet_app_access').select('email,user_id,status'));return await removeAddress(db,app,{accounts},body.id)?reply({ok:true}):reply({error:'Doar adresele cu acces retras pot fi eliminate.'},409);}
   const APP='https://anzosafe-oss.github.io/mypet/';
   async function sendPetInvite(rawEmail){
    const email=String(rawEmail||'').trim().toLowerCase();
@@ -143,11 +175,11 @@ export async function handler(req){
    }finally{
     ok(await pet.rpc('mypet_finish_access_invite',{recipient:email,delivery:reservation.delivery_key,recipient_id:recipientId,delivered}));
    }
-   return {ok:true};
+   await restoreAddress(db,app,email);return {ok:true};
   }
   if(action==='overview'){
    const access=ok(await pet.from('mypet_app_access').select('email,user_id,status,created_at,updated_at,sent_at,send_count,error,last_seen_at').order('created_at',{ascending:false}).limit(1000));
-   return reply({accounts:access.map(a=>({id:a.user_id,email:a.email,status:a.status,active:a.status==='active',last_seen_at:a.last_seen_at,protected:a.email===OWNER})),invitations:access.filter(a=>a.send_count>0||a.status==='failed').map(a=>({...a,id:a.email,status:a.status==='active'?'accepted':a.status})),requests:[],capabilities:{invite:true,resend:true,revoke:true,review:false},notice:'Invitațiile și retragerea accesului se aplică doar MyPet. Carnetele și istoricul sunt păstrate. MyPet folosește contul comun cu MyCar și MyList.'});
+   return reply(await visibleOverview(db,app,{accounts:access.map(a=>({id:a.user_id,email:a.email,status:a.status,active:a.status==='active',last_seen_at:a.last_seen_at,protected:a.email===OWNER})),invitations:access.filter(a=>a.send_count>0||a.status==='failed').map(a=>({...a,id:a.email,status:a.status==='active'?'accepted':a.status})),requests:[],capabilities:{invite:true,resend:true,revoke:true,review:false},notice:'Invitațiile și retragerea accesului se aplică doar MyPet. Carnetele și istoricul sunt păstrate. MyPet folosește contul comun cu MyCar și MyList.'}));
   }
   if(action==='invite'||action==='resend'){
    const email=String(action==='resend'?body.id:body.email||'').trim().toLowerCase();
