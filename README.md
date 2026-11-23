@@ -40,3 +40,13 @@ Administrare din contul global autorizat: profiluri, invitații, retrimitere, re
 ## Eliminarea adreselor din listă — v1.4.0
 
 După retragerea accesului sau anularea invitației, administratorul poate elimina adresa din lista aplicației. Marcajele se păstrează server-side în `myapps_admin_hidden`, separat pentru fiecare aplicație. Nu se șterg utilizatori Auth, apartenențe sau date. Invitarea din nou șterge marcajul; accesul activ sau în așteptare nu poate fi ascuns. SQL-ul se aplică în ambele proiecte: `supabase/admin-hidden-emails.sql`.
+
+## Invitații personalizate — v1.5.0
+
+Gmail SMTP și toate funcțiile Auth rămân neschimbate. Cele patru template-uri sunt generate de `scripts/build-email-templates.cjs`, cu logo-uri reale din aplicații, copiate în `email-assets/`. Anonymous folosește logo-ul inline WEBP din repository-ul său, convertit lossless în PNG pentru compatibilitate email.
+
+În ambele proiecte Supabase, **Emails → Invite user** folosește `supabase/email-templates/invite.html` și `invite-subject.txt`; **Magic link or OTP** folosește `magic-link.html` și `magic-link-subject.txt`, pentru invitații către identități deja existente. Selecția folosește numai destinații exacte `.RedirectTo` din `brands.json`, inclusiv adresele istorice și preview-ul MyList. Destinațiile necunoscute primesc un mesaj neutru, cu linkul Supabase original. Butonul și alternativa text folosesc exclusiv `{{ .ConfirmationURL }}`. Nu se alege identitatea din metadata editabilă a utilizatorului. Resetarea parolei, confirmarea înregistrării și notificările de securitate nu se modifică.
+
+Regenerare: `node scripts/build-email-templates.cjs`. Verificare cu motorul real Supabase/Go: `go run scripts/verify-email-templates.go`; apoi `node --test tests/*.test.cjs`. Testele folosesc linkuri fictive, nu creează conturi și nu trimit emailuri.
+
+Testele locale verifică structura, randarea responsive și compatibilitatea sintactică Go. Livrarea Gmail SMTP și afișarea în aplicațiile reale Gmail/Outlook/iOS Mail necesită testare pe destinatari autorizați; aceste teste nu se execută fără aprobare.
