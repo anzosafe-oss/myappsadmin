@@ -1,0 +1,1 @@
+Confirmă noul e-mail – {{$p:=slice (printf "%-34s" .RedirectTo) 31 34}}{{if eq $p "myc" "MyC"}}MyCar{{else if eq $p "myp" "enz"}}MyPet{{else if eq $p "myl" "a-a"}}MyList{{else if eq $p "ano"}}Anonymous{{else}}AnZo Apps{{end}}

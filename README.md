@@ -56,3 +56,7 @@ Subiectul folosește o formulă compactă de 223 de caractere pentru limita Supa
 ## Administrarea conturilor MyList — v1.5.1
 
 Tabul Conturi include accesul retras până la „Elimină din listă”. Administratorul global poate retrage și accesul administratorilor de familie; conturile globale `is_admin` rămân protejate. RPC-ul `mylist_admin_revoke_account` verifică din nou rolul administrativ în baza de date, retrage autorizarea și partajările primite, anulează invitațiile și eliberează locul. Listele, produsele, profilul și identitatea Auth se păstrează. Dacă persoana conduce familia, `admin_id` devine null; ceilalți membri își păstrează accesul, iar reinvitarea proprietarului poate restabili rolul. Pentru conturi istorice fără invitație se păstrează un marcaj cancelled cu zero trimiteri. Eliminarea ascunde doar adresa din MyAppsAdmin, separat pentru MyList. Nu se trimit emailuri prin retragere sau eliminare.
+
+## Emailuri Auth și alias la activare — v1.6.0
+
+Template-uri pentru toate cele șase evenimente Auth. Cele cinci evenimente cu destinație cunoscută folosesc identitatea aplicației; reautentificarea folosește un singur mesaj MyAppsAdmin cu Token. MyList include iconul și wordmark-ul originale. Gmail SMTP, URL-urile securizate și parolele existente nu sunt modificate. Sursele active sunt în supabase/email-templates. Generatorul build-auth-email-preview.cjs produce aceleași surse în auth-email-draft; maparea de nume pentru Supabase este documentată în auth-email-draft/README.md.
