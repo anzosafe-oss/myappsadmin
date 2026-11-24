@@ -3,3 +3,8 @@
 !.env.example
 node_modules/
 .DS_Store
+
+# Generated self-contained email review artifact
+preview/MyAppsAdmin-Emailuri-Preview.html
+supabase/auth-email-draft/*.html
+supabase/auth-email-draft/catalog.json
