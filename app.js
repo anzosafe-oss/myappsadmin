@@ -4,6 +4,33 @@ const MAIN_KEY='sb_publishable_VJh0qSiBA0OIcG7YqnLyjA_-YwiTlMT',PET_KEY='sb_publ
 const sb=supabase.createClient(MAIN,MAIN_KEY,{auth:{storageKey:'myappsadmin-auth-v1',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const names={mylist:'MyList',mycar:'MyCar',mypet:'MyPet',anonymous:'Anonimous'};
+
+const appVersionPatterns={
+ mylist:/<script src="\.\/dist\/app\.js\?v=(\d+\.\d+\.\d+)"/,
+ mycar:/<script src="version\.js\?v=(\d+\.\d+\.\d+)"/,
+ mypet:/<meta name="mypet-version" content="(\d+\.\d+\.\d+)"/,
+ anonymous:/<meta name="anonymous-version" content="(\d+\.\d+\.\d+)"/
+};
+let nextVersionCheck=0;
+function refreshAppVersions(){
+ if(Date.now()<nextVersionCheck)return;
+ nextVersionCheck=Date.now()+5*60*1000;
+ document.querySelectorAll('.app-selector [data-app]').forEach(async card=>{
+  const app=card.dataset.app;
+  const label=card.querySelector('[data-app-version]');
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),8000);
+  try{
+   const response=await fetch('https://anzosafe-oss.github.io/'+app+'/',{
+    cache:'no-cache',credentials:'omit',signal:controller.signal
+   });
+   const version=response.ok&&(await response.text()).match(appVersionPatterns[app])?.[1];
+   label.textContent=version?'Versiune v'+version:'Versiune indisponibilă';
+  }catch{
+   label.textContent='Versiune indisponibilă';
+  }finally{clearTimeout(timeout);}
+ });
+}
 const emptyData=()=>({families:[],accounts:[],invitations:[],profiles:[],requests:[]});
 const LIVE_ENABLED=true;const MYPET_ENABLED=true;
 let session=null,current='mylist',tab='families',data=emptyData(),epoch=0,loading=false,mutating=false,confirmation=null,requestController=null;
@@ -30,6 +57,7 @@ async function refresh({silent=false}={}){
   const result=await api(selected,'overview',{},controller.signal);
   if(ticket!==epoch||current!==selected||session?.user.id!==uid)return;
   data={...emptyData(),...result};$('login').hidden=true;$('dashboard').hidden=false;$('logout').hidden=false;$('accountEmail').textContent=session.user.email;
+  refreshAppVersions();
   $('appContent').hidden=false;$('loadStatus').textContent='';render();$('lastUpdated').textContent='Actualizat la '+new Date().toLocaleTimeString('ro-RO',{hour:'2-digit',minute:'2-digit'});
  }catch(error){
   if(ticket!==epoch||current!==selected||session?.user.id!==uid)return;
