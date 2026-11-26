@@ -1,19 +1,25 @@
-# AGENTS.md — myappsadmin
+# AGENTS.md — MyAppsAdmin
 
-## Repository scope
-- Work directly in `anzosafe-oss/myappsadmin` only. Do not search, list, or inspect other GitHub repositories or organization-wide resources.
-- Expand scope only when the user explicitly requests cross-app integration, or after explaining a necessary external dependency and obtaining approval.
-- Read this file first. Use known repository paths and targeted code searches; avoid repeated discovery.
+## Priorități și continuitate
+- Prioritizează calitatea, stabilitatea și experiența utilizatorului înaintea economiei de tokeni.
+- Păstrează coerența vizuală și funcțională între aplicațiile ecosistemului MyApps și respectă convențiile de design și funcționalitate stabilite anterior.
+- Păstrează integral funcționalitățile existente care nu fac obiectul solicitării. Evită refactorizările fără legătură cu aceasta; alege modificările necesare pentru o soluție completă și stabilă.
 
-## Token efficiency
-- Inspect only relevant files, functions, and direct dependencies. Read targeted line ranges where possible.
-- Avoid full audits, full-file rewrites, unrelated refactoring, repeated checks, and unnecessary previews or documentation.
-- Use the smallest safe patch. Preserve existing UI, behavior, and versioning conventions.
-- For Supabase, access only the associated project and app-specific resources relevant to the task. Do not enumerate unrelated apps or expose secrets. Verify unknown resource identifiers before use.
+## Analiză și resurse
+- Citește acest fișier înainte de orice intervenție. Începe analiza în `anzosafe-oss/myappsadmin`, folosind căi cunoscute și căutări țintite în fișierele și dependențele relevante.
+- Consultă alte repository-uri sau proiecte Supabase atunci când sunt necesare solicitării ori verificării unei dependențe. Nu efectua căutări generale sau inventarieri fără legătură cu lucrarea.
+- Când utilizatorul face referire la o altă aplicație, consultă implementarea reală a acesteia și reutilizează soluția validată, adaptând-o aplicației curente.
+- Evită investigațiile redundante și verificările repetate fără motiv, fără a compromite calitatea implementării sau testării. Extinde analiza când este necesar pentru rezolvarea și validarea completă a problemei.
+- În Supabase, verifică identificatorii necunoscuți înainte de utilizare și accesează resursele relevante pentru sarcină. Nu expune secrete.
 
-## Maintenance and safety
-- Check references before deleting obsolete assets or code, including dynamic references, manifests, service workers, caches and deployment configuration. Never delete uncertain resources or rewrite Git history.
-- Keep cleanup targeted; do not perform unsolicited repository-wide cleanup.
-- Run tests proportionate to risk, including relevant regressions. Report untested behavior and blockers.
-- Prepare application changes on a separate branch; production publication requires explicit user approval.
-- Report changed files, test results, limitations and decisions concisely.
+## Date și întreținere
+- Datele demonstrative sunt permise exclusiv în preview și în mediile de testare. La prima publicare, aplicația LIVE trebuie să fie curată, fără date demonstrative.
+- La actualizările ulterioare, păstrează integral datele reale ale utilizatorilor; nu le șterge și nu le înlocui cu date demonstrative.
+- Elimină fișierele, resursele sau codul devenite inutile numai după verificarea dependențelor, inclusiv referințe dinamice, manifest, service worker, cache și configurația de publicare.
+- Păstrează curățarea în limitele intervenției. Nu șterge resurse cu utilizare incertă și nu rescrie istoricul Git.
+
+## Validare și publicare
+- Rulează verificările și testele relevante pentru modificare și riscurile ei, inclusiv regresiile necesare. Verifică compatibilitatea cu iOS, Android și desktop; raportează comportamentele netestate și eventualele blocaje.
+- Pregătește modificările pe o ramură separată. Publică în producție numai cu acordul explicit al utilizatorului.
+- Actualizează versiunea aplicației la publicare, respectând convențiile existente.
+- Raportează concis fișierele modificate, rezultatele verificărilor, limitările și deciziile relevante.
